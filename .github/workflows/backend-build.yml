@@ -1,0 +1,28 @@
+name: backend-build
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install
+        working-directory: server/apps/backend
+        run: npm install --no-audit --no-fund
+      - name: Build
+        working-directory: server/apps/backend
+        run: npm run build
+      - name: Pack
+        working-directory: server/apps/backend
+        run: tar -czf /tmp/backend-dist.tar.gz dist
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: backend-latest
+          name: backend-latest
+          files: /tmp/backend-dist.tar.gz
