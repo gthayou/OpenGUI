@@ -19,7 +19,7 @@ jobs:
           pnpm install --no-frozen-lockfile
       - name: Build
         working-directory: server
-        run: pnpm --filter "./apps/backend..." run build
+        run: pnpm -r run build
       - name: Pack
         working-directory: server/apps/backend
         run: tar -czf /tmp/backend-dist.tar.gz dist
@@ -29,3 +29,4 @@ jobs:
           tag_name: backend-latest
           name: backend-latest
           files: /tmp/backend-dist.tar.gz
+
