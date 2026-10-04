@@ -12,10 +12,14 @@ jobs:
         with:
           node-version: '20'
       - name: Install
-        run: npm install --no-audit --no-fund
+        working-directory: server
+        run: |
+          sudo corepack enable
+          pnpm --version
+          pnpm install --no-frozen-lockfile
       - name: Build
-        working-directory: server/apps/backend
-        run: npm run build
+        working-directory: server
+        run: pnpm --filter "./apps/backend..." run build
       - name: Pack
         working-directory: server/apps/backend
         run: tar -czf /tmp/backend-dist.tar.gz dist
