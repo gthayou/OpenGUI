@@ -10,16 +10,19 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Install
         working-directory: server
         run: |
           sudo corepack enable
           pnpm --version
           pnpm install --no-frozen-lockfile
+      - name: Prisma generate
+        working-directory: server
+        run: pnpm --filter @repo/db run db:generate
       - name: Build
         working-directory: server
-        run: pnpm -r run build
+        run: pnpm run build
       - name: Pack
         working-directory: server/apps/backend
         run: tar -czf /tmp/backend-dist.tar.gz dist
@@ -29,4 +32,3 @@ jobs:
           tag_name: backend-latest
           name: backend-latest
           files: /tmp/backend-dist.tar.gz
-
