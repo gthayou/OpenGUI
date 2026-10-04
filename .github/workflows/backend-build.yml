@@ -12,7 +12,6 @@ jobs:
         with:
           node-version: '20'
       - name: Install
-        working-directory: server/apps/backend
         run: npm install --no-audit --no-fund
       - name: Build
         working-directory: server/apps/backend
