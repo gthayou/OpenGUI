@@ -22,6 +22,14 @@ jobs:
       - name: Prisma generate
         working-directory: server
         run: pnpm --filter @repo/db run db:generate
+      - name: Patch chat layer
+        working-directory: server/apps/backend
+        run: |
+          set -e
+          F=src/modules/im-channel/im-channel.service.ts
+          sed -i 's|await this.reply(message, "Send /help to view available commands");|await this.reply(message, await chatReply(text, message.conversationId));|' "$F"
+          printf '\n%s\n' "async function chatReply(text: string, convId: string): Promise<string> { console.log('CHAT_DEBUG called conv=' + convId); const g: any = globalThis; if (!g.__ogChatHist) { g.__ogChatHist = new Map(); } const chatHistory = g.__ogChatHist; let sys = '你是住在安卓手机里的助手，说话简短温柔，用简体中文，最多两三句，不分点不说教。'; try { const fs = require('fs'); const pf = '/root/OpenGUI/server/apps/backend/persona.txt'; if (fs.existsSync(pf)) { const t = String(fs.readFileSync(pf, 'utf8')).trim(); if (t !== '') { sys = t; } } } catch (e0) {} const f = (globalThis as any).fetch; const base = process.env.CHAT_BASE_URL || process.env.VLM_BASE_URL || ''; const key = process.env.CHAT_API_KEY || process.env.VLM_API_KEY || ''; const model = process.env.CHAT_MODEL || process.env.VLM_MODEL || ''; if (!base || !key || !model) { return 'Chat model not configured'; } const hist: any[] = chatHistory.get(convId) || []; const msgs: any[] = [{ role: 'system', content: sys }].concat(hist).concat([{ role: 'user', content: text }]); try { const r = await f(base + '/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key }, body: JSON.stringify({ model: model, messages: msgs }) }); const j = await r.json(); const o = j && j.choices && j.choices[0] && j.choices[0].message ? String(j.choices[0].message.content || '') : ''; console.log('CHAT_DEBUG out=' + String(o).slice(0, 80)); if (o) { hist.push({ role: 'user', content: text }); hist.push({ role: 'assistant', content: o }); while (hist.length > 8) { hist.shift(); } chatHistory.set(convId, hist); return o.trim().slice(0, 900); } return 'Chat error: ' + JSON.stringify(j).slice(0, 300); } catch (e) { return 'Chat failed: ' + (e as Error).message; } }" >> "$F"
+          grep -c chatReply "$F"
       - name: Build
         working-directory: server
         run: pnpm run build
