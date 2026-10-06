@@ -112,7 +112,9 @@ export class ImChannelService implements OnModuleInit {
 					await this.handleDevices(message);
 					break;
 				case CommandType.FREE_TEXT:
-					await this.handleFreeText(message, cmd.rawText);
+	          if (await routeFreeTextCmd(message, cmd.rawText, this)) break;
+          await this.handleFreeText(message, cmd.rawText);
+
 					break;
 			}
 		} catch (e) {
@@ -457,4 +459,32 @@ export class ImChannelService implements OnModuleInit {
 			await this.feishuBot.sendMessage(target.conversationId, text);
 		}
 	}
+}
+async function routeFreeTextCmd(message: any, text: string, inst: any): Promise<boolean> {
+    try {
+        const base = (process.env.CHAT_BASE_URL || process.env.VLM_BASE_URL || "").replace(/\/+$/, "");
+        const key = process.env.CHAT_API_KEY || process.env.VLM_API_KEY || "";
+        const model = process.env.CHAT_MODEL || process.env.VLM_MODEL || "";
+        const sys = '你是意图分类器。如果用户在要求操作手机（打开/启动app、点击、滑动、输入、发消息、打电话等），输出 {"type":"task","task":"改写成一个明确的手机操作指令"}；否则输出 {"type":"chat"}。只输出 JSON，不要解释。';
+        const r = await fetch(base + "/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
+            body: JSON.stringify({
+                model,
+                temperature: 0,
+                response_format: { type: "json_object" },
+                messages: [{ role: "system", content: sys }, { role: "user", content: text }],
+            }),
+        });
+        const j: any = await r.json();
+        const raw = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+        const c = raw ? JSON.parse(raw) : {};
+        if (c.type === "task" && c.task && inst && inst.remoteControlService) {
+            const res: any = await inst.remoteControlService.doTask({ description: String(c.task) });
+            const name = res && res.device ? (res.device.deviceName || res.device.deviceId) : "";
+            await inst.reply(message, "好，已经让它动手了：" + String(c.task) + (name ? "（设备 " + name + "）" : ""));
+            return true;
+        }
+    } catch (e) {}
+    return false;
 }
